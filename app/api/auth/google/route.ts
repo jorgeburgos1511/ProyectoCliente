@@ -19,7 +19,13 @@ export async function POST(req: Request) {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    // Para flujo popup con @react-oauth/google (flow: "auth-code"), Google recomienda usar "postmessage" como redirect_uri.
+    // En producción, se puede forzar "postmessage" para evitar errores de redirect_uri mismatch.
+    const configuredRedirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const redirectUri =
+      !configuredRedirectUri || configuredRedirectUri === "postmessage"
+        ? "postmessage"
+        : configuredRedirectUri;
 
     if (!clientId || !clientSecret || !redirectUri) {
       console.error("Faltan variables de entorno de Google");
@@ -45,9 +51,9 @@ export async function POST(req: Request) {
 
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
-      console.error("Error al obtener token de Google:", text);
+      console.error("Error al obtener token de Google:", tokenRes.status, tokenRes.statusText, text);
       return NextResponse.json(
-        { message: "No se pudo autenticar con Google" },
+        { message: "No se pudo autenticar con Google", code: "GOOGLE_TOKEN_EXCHANGE_FAILED" },
         { status: 500 }
       );
     }
@@ -63,9 +69,9 @@ export async function POST(req: Request) {
 
     if (!profileRes.ok) {
       const text = await profileRes.text();
-      console.error("Error al obtener perfil de Google:", text);
+      console.error("Error al obtener perfil de Google:", profileRes.status, profileRes.statusText, text);
       return NextResponse.json(
-        { message: "No se pudo obtener el perfil de Google" },
+        { message: "No se pudo obtener el perfil de Google", code: "GOOGLE_USERINFO_FAILED" },
         { status: 500 }
       );
     }
